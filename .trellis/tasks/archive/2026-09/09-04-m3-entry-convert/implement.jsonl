@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/09-04-m3-entry-convert/design.md", "reason": "本任务技术设计：转换流状态机、组件清单、裁剪/类型/直映交互细节"}
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/design.md", "reason": "父任务契约：目录/性能红线/视觉基准；Worker 调用约束"}
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/prd.md", "reason": "父任务决议：targetColors 档位 chips、源图类型直映、裁剪+主体缩放+豆宽预估、尺寸方形档位+自定义"}
+{"file": ".trellis/tasks/09-04-m2-editor/research-pixel-beads.md", "reason": "裁剪/源图类型/档位交互的行为参考（第二竞品实测）"}
