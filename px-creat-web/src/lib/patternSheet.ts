@@ -55,7 +55,7 @@ export type SheetLayoutKind = 'sheet' | 'pattern_only';
 export interface PatternSheetOptions {
   /** 版式（默认 sheet）。 */
   layout: SheetLayoutKind;
-  /** 格子色号标注开关（高倍率格内直接印色号）。 */
+  /** 格子色号标注开关（格内印完整色号；格子放不下的长色号自动跳过）。 */
   cellLabels: boolean;
   /** 作者署名（空串 = 不署名）。 */
   author: string;
@@ -267,8 +267,18 @@ export function renderPatternSheet(
   ctx.strokeStyle = '#111827';
   ctx.strokeRect(grid.x, grid.y, grid.w, grid.h);
 
-  // 格子色块（cellLabels 开启且格子足够大时印色号）
+  // 格子色块（cellLabels 开启且格子足够大时印完整色号；色号放不下的格子跳过标注，
+  // 避免 Perler 长色号如 80-15179 溢出压到邻格——同一色号只测量一次）
   const labelFontPx = Math.max(7, Math.floor(cellPx * 0.34));
+  const labelFits = new Map<string, boolean>();
+  const codeFits = (code: string): boolean => {
+    const cached = labelFits.get(code);
+    if (cached !== undefined) return cached;
+    ctx.font = `${labelFontPx}px sans-serif`;
+    const fits = ctx.measureText(code).width <= cellPx - 2;
+    labelFits.set(code, fits);
+    return fits;
+  };
   for (let y = 0; y < args.h; y++) {
     for (let x = 0; x < args.w; x++) {
       const idx = args.cells[y * args.w + x];
@@ -279,7 +289,7 @@ export function renderPatternSheet(
       const py = grid.y + y * cellPx;
       ctx.fillStyle = cssRgb(color.rgb);
       ctx.fillRect(px, py, cellPx, cellPx);
-      if (options.cellLabels && cellPx >= 12) {
+      if (options.cellLabels && cellPx >= 12 && codeFits(color.code)) {
         ctx.font = `${labelFontPx}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

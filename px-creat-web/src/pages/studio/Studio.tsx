@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BRAND_INFOS } from '@/lib/palettes';
-import type { Project } from '@/lib/types';
-import {
-  parseProjectFile,
-  serializeProjectFile,
-  createIndexedDbRefImageStore,
-} from '@/lib/storage';
+import { parseProjectFile, createIndexedDbRefImageStore } from '@/lib/storage';
 import type { BeadSpec } from '@/store/project';
 import { loadPersisted, useProjectStore } from '@/store/project';
 import { useFinishStore } from '@/store/finish';
@@ -19,6 +14,7 @@ import { FinishPanel } from '@/components/editor/FinishPanel';
 import { NewDialog } from '@/components/editor/NewDialog';
 import { ImportDialog } from '@/components/editor/ImportDialog';
 import { BrandSwitchDialog } from '@/components/editor/BrandSwitchDialog';
+import { ExportDialog } from '@/components/editor/ExportDialog';
 import { useEditorShortcuts } from '@/components/editor/useEditorShortcuts';
 import { useProjectAutoSave } from '@/components/editor/useProjectAutoSave';
 import { useFinishPreview } from '@/components/editor/useFinishPreview';
@@ -44,6 +40,7 @@ export function Studio() {
   const [newOpen, setNewOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
   const [brandOpen, setBrandOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [confirm, setConfirm] = useState<{ message: string; onOk: () => void } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const restoredRef = useRef(false);
@@ -84,22 +81,6 @@ export function Studio() {
   const refStore = useCallback(() => {
     return typeof indexedDB !== 'undefined' ? createIndexedDbRefImageStore() : undefined;
   }, []);
-
-  const onExport = (): void => {
-    const state = useProjectStore.getState();
-    if (!state.loaded) return;
-    const ref = state.refImage ? { dataUrl: state.refImage.dataUrl, name: state.refImage.name } : undefined;
-    // spec 为工程 JSON 扩展字段（导入端宽松读取，见 store/project.ts）
-    const json = serializeProjectFile({ ...state.toProject(), spec: state.spec } as Project, ref);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${state.title || 'pindou-project'}.pindou.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('工程 JSON 已导出');
-  };
 
   const onImportFile = (file: File | undefined): void => {
     if (!file) return;
@@ -174,8 +155,14 @@ export function Studio() {
               e.target.value = '';
             }}
           />
-          <Button size="sm" variant="soft" onClick={onExport}>
-            导出 JSON
+          <Button
+            size="sm"
+            variant="soft"
+            title="导出三件套：图纸 PNG / BOM 清单 CSV / 工程 JSON"
+            onClick={() => setExportOpen(true)}
+            disabled={!loaded}
+          >
+            导出
           </Button>
           <Button
             size="sm"
@@ -232,6 +219,7 @@ export function Studio() {
       />
       <ImportDialog open={convertOpen} onClose={() => setConvertOpen(false)} />
       <BrandSwitchDialog open={brandOpen} onClose={() => setBrandOpen(false)} />
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} onImportProject={onImportFile} />
 
       <Dialog
         open={confirm !== null}

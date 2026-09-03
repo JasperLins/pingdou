@@ -52,7 +52,16 @@ export function runFinishInWorker(
       worker.terminate();
       fn();
     };
-    worker.onmessage = (event: MessageEvent<FinishOutput>) => finish(() => resolve(event.data));
+    worker.onmessage = (event: MessageEvent<FinishOutput | { ok: false; message: string }>) => {
+      const msg = event.data;
+      // Worker 管线异常走 {ok:false,message} 通道：必须 reject，否则错误结果被当成功缓存
+      if (!('rgba' in msg)) {
+        const message = 'message' in msg ? msg.message : 'finish worker failed';
+        finish(() => reject(new Error(message)));
+        return;
+      }
+      finish(() => resolve(msg));
+    };
     worker.onerror = (event: ErrorEvent) =>
       finish(() => reject(new Error(event.message || 'finish worker failed')));
 

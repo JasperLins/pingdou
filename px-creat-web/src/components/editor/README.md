@@ -1,4 +1,4 @@
-# src/components/editor · 编辑器组件（m2 落地）
+# src/components/editor · 编辑器组件（m2 落地，m5 增补导出）
 
 拼豆精修编辑器（M2）组件，视觉走本站 token（大圆角、pill、soft 阴影），组件结构可参考
 `lineone-ui-demo` 但禁止 navy 后台风。数据流：组件 → zustand store（`store/project.ts` 工程
@@ -21,6 +21,9 @@
   done 步「进编辑器」= loadFrom 重建网格 + applyDiff 一条 undo + 原图挂参考层（透写下置）
 - `BrandSwitchDialog.tsx` —— 品牌切换：CIEDE2000 映射预览 + 一键应用（单条 undo）+
   角标复查（reviewColors）+ 明细逐色改
+- `ExportDialog.tsx` —— 导出三件套（m5，§4.7）：图纸 PNG（版式双选 sheet/pattern_only +
+  格子色号标注开关 + 署名输入 + 限宽预览缩略图）/ BOM CSV（前 N 行预览表 + 下载）/
+  工程 JSON（导出含 finish 与内嵌参考图 + 导入复用 Studio 路径）；参数为对话框本地态
 - `useEditorShortcuts.ts` —— 快捷键全表（B/E/G/I、[ ]、空格、Ctrl+Z/Y、Esc、输入框守卫）；
   烫染预览态下空格=按住对比、Esc=返回编辑视图（m4）
 - `useProjectAutoSave.ts` —— 30s requestIdleCallback 自动保存 + beforeunload/隐藏兜底
@@ -30,6 +33,9 @@
 ## 辅助模块
 
 - `boardSpec.ts` —— 规格/板型常量与换算（BOARD_PRESETS、cm、板覆盖数、品牌规格支持）
+- `exportFiles.ts` —— 导出浏览器侧支撑（m5）：文件名清洗（`[\\/:*?"<>|]` → `_`）、
+  Blob 下载锚点（a[download]，中文文件名）、patternSheet 指令 → canvas → PNG Blob；
+  无 2D 上下文环境（jsdom/SSR）降级返回 false/null
 - `quickColors.ts` —— 24 个常用色目标值 → 当前品牌就近色号
 - `Swatch.tsx` —— 色块（PalettePanel / StatsPanel 共用）
 - `finishRender.ts` —— 烫染渲染支撑（m4）：色板数据构建 / 缩略图降采样 / 预览降级口径

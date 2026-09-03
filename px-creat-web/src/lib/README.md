@@ -10,7 +10,7 @@ Promise 调用封装）使用浏览器 Worker 运行时；`finish.worker.ts` / `
 （`converter.worker.test.ts` / `finish.worker.test.ts`）；两个 client 的真实 Worker
 构造不进单测，随 UI 联调。管线测试走纯函数路径。
 
-模块清单（m1 已落地，m4 增补 finish）：
+模块清单（m1 已落地，m4 增补 finish，m5 增补 bomCsv）：
 
 - `types.ts` —— 工程 JSON schema（§4.8）、`BeadColor`、BOM 行、工具类型等核心契约
 - `color.ts` —— 色彩科学：sRGB→CIELAB、CIEDE2000（Sharma 2005 修正）、HSL
@@ -24,7 +24,10 @@ Promise 调用封装）使用浏览器 Worker 运行时；`finish.worker.ts` / `
   烫法特效→色调映射；`PRESET_PARAMS` 六预设参数集与管线解耦；确定性噪声
   （整数哈希→值噪声→fbm），同输入同输出；intensity=0 恒等退化为原色板色
 - `finish.worker.ts` / `finishClient.ts` —— 烫染渲染的 Worker 化执行（输出 buffer transfer）
-- `patternSheet.ts` —— 图纸 PNG 渲染：BOM 统计、版式布局、注入式 canvas 绘制指令
+- `patternSheet.ts` —— 图纸 PNG 渲染：BOM 统计、版式布局（完整图纸/纯图版、格内色号标注
+  放不下自动跳过、作者署名）、注入式 canvas 绘制指令
+- `bomCsv.ts` —— BOM 清单 CSV 序列化（m5，§4.7）：表头 品牌/色号/色名/颗数/占比、
+  末行总颗数、UTF-8 BOM + CRLF（Excel 中文兼容）、RFC 4180 字段转义
 - `storage.ts` —— 分层存储（localStorage 工程 / IndexedDB 参考图）+ 工程 JSON 导入导出
 - `analytics.ts` —— 本地匿名事件接口留位（不上报）
 - `utils.ts` —— 通用工具（className 拼接等，m0）

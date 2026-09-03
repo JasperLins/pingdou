@@ -22,6 +22,8 @@ const TOOL_KEYS: Record<string, EditorTool> = {
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
+  // range 滑杆（强度等）拖动后焦点留在控件上，不应拦截 Esc/空格快捷键
+  if (target instanceof HTMLInputElement && target.type === 'range') return false;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }
 
@@ -79,7 +81,8 @@ export function useEditorShortcuts(): void {
       if (e.key === ' ') {
         const finish = useFinishStore.getState();
         if (finish.previewing) finish.setComparing(false);
-        else useEditorStore.getState().setSpaceHeld(false);
+        // 无论当前态，松开空格都清平移标记（防编辑态按住进入预览后粘滞）
+        useEditorStore.getState().setSpaceHeld(false);
       }
     };
 
