@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/09-04-m2-editor/design.md", "reason": "本任务技术设计：画布四层渲染/脏区重绘、zustand 双 store、undo diff 栈、cellOps 纯函数、交互细节定稿（竞品采纳项全部落点）"}
+{"file": ".trellis/tasks/09-04-m2-editor/implement.md", "reason": "有序执行清单（11 步，每步过四条验证）与回滚点约定"}
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/design.md", "reason": "父任务契约：目录契约、性能红线（>50ms 不上主线程）、视觉风格基准（面板组件用 ui/ 起步组件）"}
+{"file": ".trellis/tasks/09-04-m2-editor/research-beadify.md", "reason": "竞品采纳清单来源（去噪/互换/快捷行/规格反馈/自检/高亮/批量删色的行为参考）"}
+{"file": ".trellis/tasks/09-04-m2-editor/research-pixel-beads.md", "reason": "竞品采纳清单来源（对称轴规格在 m7；高亮/批量删色/网格自适应在本任务）"}
