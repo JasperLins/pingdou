@@ -58,3 +58,11 @@ export function createLocalAnalytics(capacity = 500): Analytics {
     },
   };
 }
+
+let sharedAnalytics: Analytics | null = null;
+
+/** 应用级共享记录器（UI 层埋点留位调用入口；懒创建，永不离开浏览器）。 */
+export function getAnalytics(): Analytics {
+  sharedAnalytics ??= createLocalAnalytics();
+  return sharedAnalytics;
+}

@@ -13,7 +13,11 @@
   最近使用 / 搜索 / 色系分组（含颗数徽标）
 - `StatsPanel.tsx` —— 用量面板：Readiness 导出自检 / 总览（cm·板数·豆数·色数）/
   Top colors 点击高亮 / 已用·全部页签 / 换色·互换·清除·批量删色·去噪
-- `NewDialog.tsx` —— 新建：规格（5mm/2.6mm）↔ 板型联动禁用提示 + 品牌五选（规格不匹配联动禁用）+ cm/板数实时
+- `NewDialog.tsx` —— 新建：入口两路径（空白画布/导入作品合并入口、从图片转图交棒 ImportDialog）
+  + 规格（5mm/2.6mm）↔ 板型联动禁用提示 + 品牌五选（规格不匹配联动禁用）+ cm/板数实时
+  + 可选参考图导入（挂参考层）
+- `ImportDialog.tsx` —— 图片转图纸（m3）：idle→crop→config→converting→done 状态机宿主，
+  done 步「进编辑器」= loadFrom 重建网格 + applyDiff 一条 undo + 原图挂参考层（透写下置）
 - `BrandSwitchDialog.tsx` —— 品牌切换：CIEDE2000 映射预览 + 一键应用（单条 undo）+
   角标复查（reviewColors）+ 明细逐色改
 - `useEditorShortcuts.ts` —— 快捷键全表（B/E/G/I、[ ]、空格、Ctrl+Z/Y、Esc、输入框守卫）
@@ -24,6 +28,10 @@
 - `boardSpec.ts` —— 规格/板型常量与换算（BOARD_PRESETS、cm、板覆盖数、品牌规格支持）
 - `quickColors.ts` —— 24 个常用色目标值 → 当前品牌就近色号
 - `Swatch.tsx` —— 色块（PalettePanel / StatsPanel 共用）
+- `convert/` —— 转换流（m3）：`CropStep.tsx`（8 向手柄裁剪 + 主体缩放 + 源图类型三选 +
+  豆宽预估）、`ConfigStep.tsx`（生成类型三卡 + 参数面板）、`CompareView.tsx`（150ms 防抖
+  增量重跑，Worker via lib/converterClient）、`ResultCanvas.tsx`（结果渲染，对照/done 共用）、
+  `imageIo.ts`（文件→≤2048 预压缩像素、像素→dataURL，DOM 依赖不进 lib）
 
 ## 约定
 

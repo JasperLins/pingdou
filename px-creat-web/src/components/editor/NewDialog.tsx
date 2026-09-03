@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { BRAND_INFOS } from '@/lib/palettes';
 import type { BrandKey } from '@/lib/types';
 import { useProjectStore, type BeadSpec } from '@/store/project';
@@ -6,6 +6,7 @@ import { useEditorStore } from '@/store/editor';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { cn } from '@/lib/utils';
+import type { ConvertSource } from '@/store/convert';
 import {
   BOARD_PRESETS,
   CUSTOM_SIZE_MAX,
@@ -17,23 +18,34 @@ import {
   physicalCm,
   type BoardPreset,
 } from './boardSpec';
+import { IMPORT_ACCEPT, ImportImageError, loadSourceImage } from './convert/imageIo';
+
+/** 入口路径（m3 决议：自由创作/导入作品合并为一入口 + 从图片转图独立入口）。 */
+type NewPath = 'blank' | 'convert';
 
 /**
- * 新建项目对话框：规格（5mm/2.6mm）↔ 板型档位联动禁用提示 +
- * 品牌五选卡（规格不匹配的品牌联动禁用）+ 自定义 7–104 正方形 +
- * cm 物理尺寸与板数实时显示。创建后品牌锁定（切换走 BrandSwitchDialog）。
+ * 新建项目对话框：入口两路径（空白画布/导入作品合并入口、从图片转图）+
+ * 规格（5mm/2.6mm）↔ 板型档位联动禁用提示 + 品牌五选卡（规格不匹配联动禁用）+
+ * 自定义 7–104 正方形 + cm 物理尺寸与板数实时显示。
+ * 创建后品牌锁定（切换走 BrandSwitchDialog）。
  */
 export interface NewDialogProps {
   open: boolean;
   onClose: () => void;
+  /** 「从图片转图」路径交棒（宿主打开 ImportDialog）。 */
+  onOpenConvert?: () => void;
 }
 
-export function NewDialog({ open, onClose }: NewDialogProps) {
+export function NewDialog({ open, onClose, onOpenConvert }: NewDialogProps) {
+  const [path, setPath] = useState<NewPath>('blank');
   const [spec, setSpec] = useState<BeadSpec>('5mm');
   const [size, setSize] = useState(29);
   const [customSize, setCustomSize] = useState(52);
   const [brand, setBrand] = useState<BrandKey>('mard');
   const [title, setTitle] = useState('');
+  const [refImport, setRefImport] = useState<ConvertSource | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const refInputRef = useRef<HTMLInputElement>(null);
 
   const effectiveSize = size === -1 ? customSize : size;
   const cm = physicalCm(effectiveSize, spec);
@@ -45,8 +57,18 @@ export function NewDialog({ open, onClose }: NewDialogProps) {
     [spec],
   );
 
+  const onImportRefFile = (file: File | undefined): void => {
+    if (!file) return;
+    setImportError(null);
+    loadSourceImage(file)
+      .then((source) => setRefImport(source))
+      .catch((err: unknown) => {
+        setImportError(err instanceof ImportImageError ? err.message : '参考图读取失败，请重试');
+      });
+  };
+
   const onCreate = (): void => {
-    if (customInvalid) return;
+    if (customInvalid || path !== 'blank') return;
     useProjectStore.getState().newProject({
       title: title.trim() === '' ? `未命名作品（${effectiveSize}×${effectiveSize}）` : title.trim(),
       brandKey: brand,
@@ -54,12 +76,71 @@ export function NewDialog({ open, onClose }: NewDialogProps) {
       size: effectiveSize,
     });
     useEditorStore.getState().resetEditor();
+    // 合并入口：导入的作品图挂参考层（透写下置），画布仍从空白开始
+    if (refImport) {
+      useProjectStore.getState().setRefImage({ name: refImport.name, dataUrl: refImport.dataUrl });
+    }
+    setPath('blank');
+    setRefImport(null);
+    setTitle('');
     onClose();
   };
 
+  const goConvert = (): void => {
+    setPath('blank');
+    setRefImport(null);
+    onClose();
+    onOpenConvert?.();
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} title="新建拼豆作品" className="max-w-lg">
+    <Dialog open={open} onClose={onClose} title="新建拼豆作品" className="max-w-lg" footer={renderFooter()}>
       <div className="space-y-5">
+        {/* 入口路径 */}
+        <fieldset>
+          <legend className="mb-1.5 text-xs font-bold text-ink">从哪开始？</legend>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              aria-pressed={path === 'blank'}
+              onClick={() => setPath('blank')}
+              className={cn(
+                'rounded-2xl border-2 px-3.5 py-2.5 text-left transition-all',
+                path === 'blank' ? 'border-primary bg-primaryFaint' : 'border-line bg-surface hover:border-primary/60',
+              )}
+            >
+              <span className="block text-sm font-bold text-ink">空白画布 / 导入我的作品</span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-inkSoft">
+                从零开画；也可挂一张参考图照着拼
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={path === 'convert'}
+              onClick={() => setPath('convert')}
+              className={cn(
+                'rounded-2xl border-2 px-3.5 py-2.5 text-left transition-all',
+                path === 'convert' ? 'border-primary bg-primaryFaint' : 'border-line bg-surface hover:border-primary/60',
+              )}
+            >
+              <span className="block text-sm font-bold text-ink">从图片转图</span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-inkSoft">
+                照片/像素画一键转图纸，再精修
+              </span>
+            </button>
+          </div>
+        </fieldset>
+
+        {path === 'convert' ? (
+          <div className="rounded-card bg-surface2 p-4 text-xs leading-relaxed text-inkSoft">
+            <p className="font-bold text-ink">转图流程</p>
+            <p className="mt-1">
+              选图 → 裁剪主体 → 选生成类型（Q版 / 标准 / 写真）与参数 → 实时对照 → 进编辑器精修。
+              尺寸、规格、品牌都会在转换流程里确定，现在直接开始。
+            </p>
+          </div>
+        ) : (
+          <>
         {/* 标题 */}
         <label className="block">
           <span className="mb-1.5 block text-xs font-bold text-ink">作品名称（可留空）</span>
@@ -193,6 +274,47 @@ export function NewDialog({ open, onClose }: NewDialogProps) {
           </div>
         </fieldset>
 
+        {/* 导入我的作品（可选参考图，挂参考层） */}
+        <fieldset>
+          <legend className="mb-1.5 text-xs font-bold text-ink">导入我的作品（可选）</legend>
+          <div className="flex items-center gap-3">
+            <Button size="sm" variant="outline" onClick={() => refInputRef.current?.click()}>
+              选择参考图
+            </Button>
+            <input
+              ref={refInputRef}
+              type="file"
+              accept={IMPORT_ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                onImportRefFile(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+            {refImport ? (
+              <span className="flex min-w-0 items-center gap-2 text-[11px] text-inkSoft">
+                <img
+                  src={refImport.dataUrl}
+                  alt="参考图缩略"
+                  className="h-9 w-9 rounded-thumb border border-line object-cover"
+                />
+                <span className="truncate font-bold text-ink">{refImport.name}</span>
+                <button
+                  type="button"
+                  aria-label="移除参考图"
+                  onClick={() => setRefImport(null)}
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold text-primaryStrong hover:bg-primaryFaint"
+                >
+                  移除
+                </button>
+              </span>
+            ) : (
+              <span className="text-[11px] text-inkSoft">挂到参考层照着拼，画布仍从空白开始</span>
+            )}
+          </div>
+          {importError && <p className="mt-1 text-[11px] font-semibold text-primaryStrong">{importError}</p>}
+        </fieldset>
+
         {/* 实时规格反馈 */}
         <div className="rounded-2xl bg-surface2 p-3.5 text-xs text-inkSoft">
           <p>
@@ -201,16 +323,32 @@ export function NewDialog({ open, onClose }: NewDialogProps) {
             约 <span className="font-bold text-ink">{coverage.total}</span> 块板（{coverage.cols}×{coverage.rows}）
           </p>
         </div>
+          </>
+        )}
       </div>
+    </Dialog>
+  );
 
-      <div className="mt-5 flex justify-end gap-3">
+  function renderFooter(): ReactNode {
+    if (path === 'convert') {
+      return (
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            取消
+          </Button>
+          <Button onClick={goConvert}>去转图</Button>
+        </>
+      );
+    }
+    return (
+      <>
         <Button variant="ghost" onClick={onClose}>
           取消
         </Button>
         <Button onClick={onCreate} disabled={customInvalid}>
           开始创作
         </Button>
-      </div>
-    </Dialog>
-  );
+      </>
+    );
+  }
 }

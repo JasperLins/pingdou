@@ -6,7 +6,13 @@
  * 经 browser 调用请使用 ./converterClient.ts 的 Promise 封装。
  */
 
-import { convertImage, type ConvertOptions, type ConvertResult } from './converter';
+import {
+  convertImage,
+  mapPixelGrid,
+  type ConvertOptions,
+  type ConvertResult,
+  type ConvertSourceType,
+} from './converter';
 import { loadPalette } from './palettes';
 import type { BrandKey } from './types';
 
@@ -19,6 +25,8 @@ export interface ConvertWorkerRequest {
   targetH: number;
   brandKey: BrandKey;
   options?: ConvertOptions;
+  /** 源图类型（缺省 photo 走降采样管线；pixelArt/beadPattern 走按格直映）。 */
+  sourceType?: ConvertSourceType;
 }
 
 /** Worker 线程上下文（DedicatedWorkerGlobalScope 的最小结构声明，避免 lib 冲突）。 */
@@ -38,7 +46,10 @@ ctx.onmessage = (event: MessageEvent<ConvertWorkerRequest>): void => {
       height: req.height,
       data: new Uint8ClampedArray(req.buffer),
     };
-    const result = convertImage(image, palette, req.targetW, req.targetH, req.options);
+    const result =
+      req.sourceType === 'pixelArt' || req.sourceType === 'beadPattern'
+        ? mapPixelGrid(image, palette, req.options)
+        : convertImage(image, palette, req.targetW, req.targetH, req.options);
     if (result.ok) {
       ctx.postMessage(result, [result.cells.buffer]);
     } else {

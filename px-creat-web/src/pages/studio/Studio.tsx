@@ -15,6 +15,7 @@ import { ToolRail } from '@/components/editor/ToolRail';
 import { PalettePanel } from '@/components/editor/PalettePanel';
 import { StatsPanel } from '@/components/editor/StatsPanel';
 import { NewDialog } from '@/components/editor/NewDialog';
+import { ImportDialog } from '@/components/editor/ImportDialog';
 import { BrandSwitchDialog } from '@/components/editor/BrandSwitchDialog';
 import { useEditorShortcuts } from '@/components/editor/useEditorShortcuts';
 import { useProjectAutoSave } from '@/components/editor/useProjectAutoSave';
@@ -35,6 +36,7 @@ export function Studio() {
   const lastSavedAt = useProjectStore((s) => s.lastSavedAt);
 
   const [newOpen, setNewOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
   const [brandOpen, setBrandOpen] = useState(false);
   const [confirm, setConfirm] = useState<{ message: string; onOk: () => void } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -143,6 +145,14 @@ export function Studio() {
           <Button size="sm" variant="soft" onClick={() => guarded(() => setNewOpen(true))}>
             新建
           </Button>
+          <Button
+            size="sm"
+            variant="soft"
+            title="照片 / 像素画 / 已有图纸 → 一键转图纸"
+            onClick={() => guarded(() => setConvertOpen(true))}
+          >
+            转图
+          </Button>
           <Button size="sm" variant="soft" onClick={() => importInputRef.current?.click()}>
             导入 JSON
           </Button>
@@ -191,7 +201,12 @@ export function Studio() {
         </span>
       </footer>
 
-      <NewDialog open={newOpen} onClose={() => setNewOpen(false)} />
+      <NewDialog
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        onOpenConvert={() => setConvertOpen(true)}
+      />
+      <ImportDialog open={convertOpen} onClose={() => setConvertOpen(false)} />
       <BrandSwitchDialog open={brandOpen} onClose={() => setBrandOpen(false)} />
 
       <Dialog

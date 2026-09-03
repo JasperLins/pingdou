@@ -35,6 +35,69 @@ export interface BackgroundOptions {
   tolerance: number;
 }
 
+/**
+ * 亮度 / 对比度 / 饱和度调节（各 -100–100，0 = 中性）。
+ * 语义对齐 CSS filter 的 brightness/contrast/saturate，预览可用 CSS filter 同步。
+ */
+export interface ImageAdjustments {
+  /** 亮度（-100 变暗 – +100 提亮）。 */
+  brightness: number;
+  /** 对比度（-100 变灰 – +100 增强）。 */
+  contrast: number;
+  /** 饱和度（-100 去色 – +100 加艳）。 */
+  saturation: number;
+}
+
+/** 中性调节（不改变任何像素）。 */
+export const NEUTRAL_ADJUSTMENTS: Readonly<ImageAdjustments> = Object.freeze({
+  brightness: 0,
+  contrast: 0,
+  saturation: 0,
+});
+
+/** 调节值边界钳制。 */
+export function clampAdjustments(adj: Partial<ImageAdjustments>): ImageAdjustments {
+  const clamp = (v: number | undefined): number =>
+    Math.min(100, Math.max(-100, Math.round(v ?? 0)));
+  return { brightness: clamp(adj.brightness), contrast: clamp(adj.contrast), saturation: clamp(adj.saturation) };
+}
+
+/** 全中性时返回 true（调用方跳过像素处理）。 */
+export function isNeutralAdjustments(adj: Readonly<ImageAdjustments>): boolean {
+  return adj.brightness === 0 && adj.contrast === 0 && adj.saturation === 0;
+}
+
+/**
+ * 应用亮度 / 对比度 / 饱和度调节（顺序：亮度 → 对比度 → 饱和度，与 CSS filter 一致）。
+ *
+ * @param img 源图像素（不被修改）
+ * @param adj 调节参数（中性时原样返回同一引用）
+ */
+export function applyAdjustments(img: PixelImage, adj: Readonly<ImageAdjustments>): PixelImage {
+  if (isNeutralAdjustments(adj)) return img;
+  const { width: w, height: h, data } = img;
+  const out = new Uint8ClampedArray(data);
+  const brightness = 1 + adj.brightness / 100;
+  // 对比度换算到经典 -255–255 公式（与 CSS contrast() 同形）
+  const c = adj.contrast * 2.55;
+  const contrastF = (259 * (c + 255)) / (255 * (259 - c));
+  const saturation = 1 + adj.saturation / 100;
+  for (let o = 0; o < out.length; o += 4) {
+    if (out[o + 3] === 0) continue;
+    let r = (out[o] * brightness - 128) * contrastF + 128;
+    let g = (out[o + 1] * brightness - 128) * contrastF + 128;
+    let b = (out[o + 2] * brightness - 128) * contrastF + 128;
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    r = lum + (r - lum) * saturation;
+    g = lum + (g - lum) * saturation;
+    b = lum + (b - lum) * saturation;
+    out[o] = r;
+    out[o + 1] = g;
+    out[o + 2] = b;
+  }
+  return { width: w, height: h, data: out };
+}
+
 /** 转换参数。 */
 export interface ConvertOptions {
   mode: ConvertMode;
@@ -43,6 +106,8 @@ export interface ConvertOptions {
   background: BackgroundOptions;
   /** 格子平均 alpha 低于该阈值（0–255）输出空格。 */
   alphaThreshold: number;
+  /** 亮度/对比度/饱和度调节（缺省 = 中性）。 */
+  adjust?: Readonly<ImageAdjustments>;
 }
 
 /** 转换参数缺省值（卡通 + 不限色数 + 不移除背景）。 */
@@ -53,8 +118,8 @@ export const DEFAULT_CONVERT_OPTIONS: Readonly<ConvertOptions> = Object.freeze({
   alphaThreshold: 128,
 });
 
-/** 可判别错误码：低分辨率 / 近纯色为 §4.3.5 边界提示；internal_error 为管线异常兜底。 */
-export type ConvertErrorCode = 'low_resolution' | 'near_solid_color' | 'internal_error';
+/** 可判别错误码：低分辨率 / 近纯色为 §4.3.5 边界提示；too_large 为直映网格超上限（P2 承接）；internal_error 为管线异常兜底。 */
+export type ConvertErrorCode = 'low_resolution' | 'near_solid_color' | 'too_large' | 'internal_error';
 
 /** 转换成功结果。 */
 export interface ConvertSuccess {
@@ -561,6 +626,9 @@ export function convertImage(
   if (invalid) return invalid;
 
   let work = img;
+  if (options.adjust && !isNeutralAdjustments(options.adjust)) {
+    work = applyAdjustments(work, options.adjust);
+  }
   if (options.background.remove) {
     work = removeSolidBackground(work, options.background.tolerance);
   }
@@ -584,4 +652,258 @@ export function convertImage(
     if (idx >= 0) used.add(idx);
   }
   return { ok: true, w: targetW, h: targetH, cells, usedCodes: used.size };
+}
+
+// ---------------------------------------------------------------------------
+// 像素子图提取（裁剪步 → 转换输入）
+// ---------------------------------------------------------------------------
+
+/** 像素矩形（源图坐标系，整数）。 */
+export interface PixelRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * 提取子图（裁剪）。矩形被钳制到源图边界且至少 1×1；越界部分收敛，
+ * 不做任何重采样（主体缩放由调用方以更小的矩形表达，见转换会话 store）。
+ *
+ * @param img 源图像素
+ * @param rect 裁剪矩形
+ */
+export function cropImage(img: PixelImage, rect: PixelRect): PixelImage {
+  const x0 = Math.min(img.width - 1, Math.max(0, Math.floor(rect.x)));
+  const y0 = Math.min(img.height - 1, Math.max(0, Math.floor(rect.y)));
+  const x1 = Math.min(img.width, Math.max(x0 + 1, Math.floor(rect.x + rect.w)));
+  const y1 = Math.min(img.height, Math.max(y0 + 1, Math.floor(rect.y + rect.h)));
+  const w = x1 - x0;
+  const h = y1 - y0;
+  const out = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    const srcStart = ((y0 + y) * img.width + x0) * 4;
+    out.set(img.data.subarray(srcStart, srcStart + w * 4), y * w * 4);
+  }
+  return { width: w, height: h, data: out };
+}
+
+// ---------------------------------------------------------------------------
+// 源图类型直映（像素画 / 拼豆图纸，§4.3 采纳 pixel-beads 调研）
+// ---------------------------------------------------------------------------
+
+/** 源图类型：普通图片走降采样管线；像素画/拼豆图纸走按格直映。 */
+export type ConvertSourceType = 'photo' | 'pixelArt' | 'beadPattern';
+
+/** 直映网格规模红线（与 P0 方形上限一致；超大图 P2 承接）。 */
+export const MAX_DIRECT_GRID = 104;
+/** 直映网格最小规模（与自定义尺寸下限一致）。 */
+export const MIN_DIRECT_GRID = 7;
+
+/** 识别出的像素网格。 */
+export interface PixelGridInfo {
+  /** 网格步长（源图像素/格）。 */
+  pitch: number;
+  cols: number;
+  rows: number;
+}
+
+/** 边缘间距统计的最小支持率（低于判无网格）。 */
+const GRID_GAP_SUPPORT_MIN = 0.7;
+/** 单轴最少边界数（不足判无网格）。 */
+const GRID_EDGES_MIN = 4;
+/** 边界密度上限（照片/渐变的边缘密集，密度过高判无网格）。 */
+const GRID_EDGE_DENSITY_MAX = 0.34;
+
+/**
+ * 识别源图像素网格步长：对水平/垂直方向的相邻像素色差做差分剖面，
+ * 高于剖面均值的位置视为网格边界（颜色变化线，抗锯齿会把一条边界
+ * 摊到相邻 1–2px → 先聚类为单边界）；边界间距恒为步长的整数倍
+ * （相邻同色格之间边界缺失 → 间距翻倍），因此取边界间距的主导值
+ * （众数，2–64）为步长，用"间距是否都能对齐步长整数倍（±1 容差）"
+ * 与边界密度双重验证。照片/渐变边界密集（间距 1–2 且密度过半），不构成网格。
+ *
+ * @param img 源图像素
+ * @returns 网格信息；无显著网格时返回 null（调用方按逐像素处理）
+ */
+export function detectPixelGrid(img: PixelImage): PixelGridInfo | null {
+  const { width: w, height: h, data } = img;
+  if (Math.min(w, h) < GRID_EDGES_MIN * 2) return null;
+
+  // 差分剖面（廉价 RGB 距离，alpha 差计入）
+  const colDiff = new Float64Array(w);
+  const rowDiff = new Float64Array(h);
+  for (let y = 1; y < h; y++) {
+    for (let x = 1; x < w; x++) {
+      const o = (y * w + x) * 4;
+      const left = o - 4;
+      const up = o - w * 4;
+      const dx =
+        Math.abs(data[o] - data[left]) +
+        Math.abs(data[o + 1] - data[left + 1]) +
+        Math.abs(data[o + 2] - data[left + 2]) +
+        Math.abs(data[o + 3] - data[left + 3]);
+      const dy =
+        Math.abs(data[o] - data[up]) +
+        Math.abs(data[o + 1] - data[up + 1]) +
+        Math.abs(data[o + 2] - data[up + 2]) +
+        Math.abs(data[o + 3] - data[up + 3]);
+      colDiff[x] += dx;
+      rowDiff[y] += dy;
+    }
+  }
+
+  // 剖面 → 边界位置（> 均值）→ 聚类（相邻 ≤1px 合并为一条边界）→ 间距样本
+  const collectGaps = (profile: Float64Array): number[] => {
+    let mean = 0;
+    for (let i = 1; i < profile.length; i++) mean += profile[i];
+    mean /= profile.length - 1;
+    const edges: number[] = [];
+    for (let i = 1; i < profile.length; i++) {
+      if (profile[i] > mean) edges.push(i);
+    }
+    const centers: number[] = [];
+    let i = 0;
+    while (i < edges.length) {
+      let j = i;
+      while (j + 1 < edges.length && edges[j + 1] - edges[j] <= 1) j++;
+      centers.push((edges[i] + edges[j]) / 2);
+      i = j + 1;
+    }
+    if (centers.length < GRID_EDGES_MIN) return [];
+    if (centers.length / (profile.length - 1) > GRID_EDGE_DENSITY_MAX) {
+      return []; // 边缘过密：照片/渐变
+    }
+    const gaps: number[] = [];
+    for (let k = 1; k < centers.length; k++) gaps.push(centers[k] - centers[k - 1]);
+    return gaps;
+  };
+  const gaps = [...collectGaps(colDiff), ...collectGaps(rowDiff)];
+  if (gaps.length === 0) return null;
+
+  // 主导间距（众数，2–64；并列取更小）
+  const counts = new Map<number, number>();
+  for (const g of gaps) {
+    if (g < 2 || g > 64) continue;
+    const key = Math.round(g);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  let pitch = 0;
+  let bestCount = 0;
+  for (const [g, n] of counts) {
+    if (n > bestCount || (n === bestCount && g < pitch)) {
+      pitch = g;
+      bestCount = n;
+    }
+  }
+  if (pitch < 2) return null;
+
+  // 支持率：间距与步长整数倍对齐（±1 抗锯齿容差）
+  let supported = 0;
+  let total = 0;
+  for (const g of gaps) {
+    if (g < 2) continue;
+    total += 1;
+    const multiple = Math.round(g / pitch);
+    if (multiple >= 1 && Math.abs(g - multiple * pitch) <= 1) supported += 1;
+  }
+  if (total === 0 || supported / total < GRID_GAP_SUPPORT_MIN) return null;
+
+  return { pitch, cols: Math.floor(w / pitch), rows: Math.floor(h / pitch) };
+}
+
+/**
+ * 像素画 / 拼豆图纸按格直映（跳过降采样与代表色阶段的区域平均：
+ * 识别源图网格 → 每格取众数主导色（卡通式，抗压缩噪点）→ CIEDE2000 最近色）。
+ * 网格规模由源图决定，超过 104×104 返回 too_large（P2 承接）。
+ *
+ * @param img 源图像素（裁剪后的区域）
+ * @param palette 品牌色板
+ * @param options 转换参数（mode 不参与采样；targetColors/background/adjust 生效）
+ */
+export function mapPixelGrid(
+  img: PixelImage,
+  palette: Palette,
+  options: Readonly<ConvertOptions> = DEFAULT_CONVERT_OPTIONS,
+): ConvertResult {
+  const grid = detectPixelGrid(img);
+  const pitch = grid?.pitch ?? 1;
+  const cols = grid?.cols ?? img.width;
+  const rows = grid?.rows ?? img.height;
+
+  if (cols > MAX_DIRECT_GRID || rows > MAX_DIRECT_GRID) {
+    return {
+      ok: false,
+      code: 'too_large',
+      message: `直映需要 ${cols}×${rows} 网格，超过 ${MAX_DIRECT_GRID}×${MAX_DIRECT_GRID} 上限（超大图纸 P2 支持）。请改用「普通图片」类型，或裁剪到更小的网格区域`,
+    };
+  }
+  if (cols < MIN_DIRECT_GRID || rows < MIN_DIRECT_GRID) {
+    return {
+      ok: false,
+      code: 'low_resolution',
+      message: `识别出的网格 ${cols}×${rows} 小于 ${MIN_DIRECT_GRID}×${MIN_DIRECT_GRID}，请更换更大的源图或改用「普通图片」类型`,
+    };
+  }
+
+  // 只取完整格子覆盖的区域（忽略右侧/下侧不完整的余量）
+  let work = pitch === 1 ? img : cropImage(img, { x: 0, y: 0, w: cols * pitch, h: rows * pitch });
+  if (options.adjust && !isNeutralAdjustments(options.adjust)) {
+    work = applyAdjustments(work, options.adjust);
+  }
+  if (options.background.remove) {
+    work = removeSolidBackground(work, options.background.tolerance);
+  }
+  // 每格恰好覆盖 pitch×pitch 区域，复用代表色计算的众数主导色逻辑
+  const reps = computeRepresentatives(work, cols, rows, 'cartoon');
+  const subset =
+    options.targetColors > 0 ? selectPaletteSubset(reps, palette, options.targetColors) : undefined;
+  const matcher = createNearestMatcher(palette, subset);
+
+  const cells = new Int16Array(cols * rows);
+  const used = new Set<number>();
+  for (let i = 0; i < cells.length; i++) {
+    const rep = reps[i];
+    if (rep.alpha < options.alphaThreshold) {
+      cells[i] = -1;
+      continue;
+    }
+    const idx = matcher.nearestIndex(rep.rgb);
+    cells[i] = idx;
+    if (idx >= 0) used.add(idx);
+  }
+  return { ok: true, w: cols, h: rows, cells, usedCodes: used.size };
+}
+
+// ---------------------------------------------------------------------------
+// 写实照片启发（Q版 + 写实照片 → 建议改写真，§4.3.5 提示的判定依据）
+// ---------------------------------------------------------------------------
+
+/** 5bit 量化桶数达到该值视为写实照片（卡通平涂 + 抗锯齿通常远低于此）。 */
+const PHOTO_LIKE_UNIQUE_BUCKETS = 8000;
+
+/**
+ * 写实照片启发式判断：中心步长采样统计 5bit 量化唯一色桶数，
+ * 色彩连续性极强的图（照片）唯一桶数远高于平涂插画。
+ * 仅用于提示文案，不阻塞任何流程。
+ */
+export function estimateIsPhotographic(img: PixelImage): boolean {
+  const { width: w, height: h, data } = img;
+  const seen = new Uint8Array(32768);
+  let unique = 0;
+  let total = 0;
+  for (let y = 0; y < h; y += 2) {
+    for (let x = 0; x < w; x += 2) {
+      const o = (y * w + x) * 4;
+      if (data[o + 3] === 0) continue;
+      total += 1;
+      const key = quantizeKey(data[o], data[o + 1], data[o + 2]);
+      if (seen[key] === 0) {
+        seen[key] = 1;
+        unique += 1;
+      }
+    }
+  }
+  if (total < 2500) return false; // 样本太少不判定
+  return unique >= PHOTO_LIKE_UNIQUE_BUCKETS;
 }
