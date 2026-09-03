@@ -1,0 +1,3 @@
+cn.pixel.pingdou.framework.mq.redis.config.PingdouRedisMQProducerAutoConfiguration
+cn.pixel.pingdou.framework.mq.redis.config.PingdouRedisMQConsumerAutoConfiguration
+cn.pixel.pingdou.framework.mq.rabbitmq.config.PingdouRabbitMQAutoConfiguration

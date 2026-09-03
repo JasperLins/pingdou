@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/09-04-m1-lib/prd.md", "reason": "验收标准：五品牌 1,386 色入库校验、104×104×291 色 ≤2s、卡通模式硬边、targetColors=16 生效、分层存储、单测覆盖清单"}
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/design.md", "reason": "契约检查依据：lib 无 React import、schema 对齐 §4.8、性能红线、公开函数显式签名+TSDoc"}

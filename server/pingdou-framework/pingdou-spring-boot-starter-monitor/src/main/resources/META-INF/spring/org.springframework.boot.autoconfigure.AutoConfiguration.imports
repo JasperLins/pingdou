@@ -1,0 +1,2 @@
+cn.pixel.pingdou.framework.tracer.config.PingdouTracerAutoConfiguration
+cn.pixel.pingdou.framework.tracer.config.PingdouMetricsAutoConfiguration

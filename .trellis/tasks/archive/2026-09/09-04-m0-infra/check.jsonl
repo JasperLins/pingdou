@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/09-04-m0-infra/prd.md", "reason": "验收标准清单：tsc/build、预渲染静态 HTML、双主题/暗色切换、组件演示页符合 web-style、SEO 方案定稿回写"}
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/design.md", "reason": "检查实现是否违反跨任务契约：目录结构、token 集中、视觉风格基准、lib 无 React"}
+{"file": "AGENTS.md", "reason": "根项目代码规范：TS strict、无 any 滥用、设计 token 不散落硬编码"}

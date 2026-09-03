@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/design.md", "reason": "跨子任务技术契约：技术栈定稿、目录契约、视觉风格基准（web-style 双图 token、双主题）、核心数据契约、性能红线"}
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/prd.md", "reason": "父任务范围决议（三入口合并、P0 排除项等），避免越界实现"}
+{"file": "px-creat-web/AGENTS.md", "reason": "子项目代码规范：目录结构、lib/UI 解耦、SEO 路由层管理、视觉基准与 lineone 参考口径"}
+{"file": "px-creat-web/web-style/readme.md", "reason": "视觉基准目录说明：两图为期待的网站样式风格"}

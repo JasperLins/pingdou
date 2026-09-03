@@ -1,0 +1,7 @@
+cn.pixel.pingdou.framework.apilog.config.PingdouApiLogAutoConfiguration
+cn.pixel.pingdou.framework.jackson.config.PingdouJacksonAutoConfiguration
+cn.pixel.pingdou.framework.swagger.config.PingdouSwaggerAutoConfiguration
+cn.pixel.pingdou.framework.web.config.PingdouWebAutoConfiguration
+cn.pixel.pingdou.framework.xss.config.PingdouXssAutoConfiguration
+cn.pixel.pingdou.framework.banner.config.PingdouBannerAutoConfiguration
+cn.pixel.pingdou.framework.encrypt.config.PingdouApiEncryptAutoConfiguration

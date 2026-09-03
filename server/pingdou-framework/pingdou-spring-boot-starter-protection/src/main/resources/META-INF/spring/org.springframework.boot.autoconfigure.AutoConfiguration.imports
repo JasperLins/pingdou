@@ -1,0 +1,4 @@
+cn.pixel.pingdou.framework.idempotent.config.PingdouIdempotentConfiguration
+cn.pixel.pingdou.framework.lock4j.config.PingdouLock4jConfiguration
+cn.pixel.pingdou.framework.ratelimiter.config.PingdouRateLimiterConfiguration
+cn.pixel.pingdou.framework.signature.config.PingdouApiSignatureAutoConfiguration

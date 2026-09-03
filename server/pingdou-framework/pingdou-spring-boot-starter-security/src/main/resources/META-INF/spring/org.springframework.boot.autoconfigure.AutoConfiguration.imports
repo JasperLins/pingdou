@@ -1,0 +1,3 @@
+cn.pixel.pingdou.framework.security.config.PingdouSecurityAutoConfiguration
+cn.pixel.pingdou.framework.security.config.PingdouWebSecurityConfigurerAdapter
+cn.pixel.pingdou.framework.operatelog.config.PingdouOperateLogConfiguration

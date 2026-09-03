@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>pingdou</artifactId>
+        <groupId>cn.pixel.boot</groupId>
+        <version>${revision}</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>pingdou-module-mall</artifactId>
+    <packaging>pom</packaging>
+
+    <name>${project.artifactId}</name>
+
+    <description>
+        商城大模块，由 product 商品、promotion 营销、trade 交易、statistics 统计等组成
+    </description>
+    <modules>
+        <module>pingdou-module-product</module>
+        <module>pingdou-module-promotion</module>
+        <module>pingdou-module-trade</module>
+        <module>pingdou-module-statistics</module>
+        <!--
+            特殊：为什么会有 pingdou-module-trade-api 呢？
+                pingdou-module-promotion 和 pingdou-module-trade 之间相互循环依赖，所以抽出 pingdou-module-trade-api 模块，这样：
+                1. pingdou-module-promotion 依赖 pingdou-module-trade-api
+                2. pingdou-module-trade 依赖 pingdou-module-promotion
+            从而不存在相互（循环）依赖，即 pingdou-module-trade => pingdou-module-promotion => pingdou-module-trade-api
+         -->
+        <module>pingdou-module-trade-api</module>
+    </modules>
+
+</project>

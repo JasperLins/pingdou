@@ -1,0 +1,28 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.local
+
+# 日志与系统文件
+*.log
+.DS_Store
+Thumbs.db
+
+# Java 构建产物（server/）
+target/
+*.class
+
+# 上游 fork：自带 .git，不纳入本仓库
+/yudao-ui-admin-vue3/
+/yudao-ui-admin-uniapp/
+
+# 上游演示种子 SQL：含 ruoyi-vue-pro 自带的云厂商示例 AccessKey（GitHub Push Protection 拦截）
+# 拼豆自有 SQL 变更放根 sql/ 目录（AGENTS.md §3.3 约定）
+/server/sql/
+
+# 参考资产：第三方 UI Kit，体积大、无业务逻辑
+/lineone-ui-demo/
+
+# 本地环境变量
+.env
+.env.*

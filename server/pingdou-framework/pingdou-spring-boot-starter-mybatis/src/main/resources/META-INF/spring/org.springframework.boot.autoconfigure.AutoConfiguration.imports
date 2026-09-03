@@ -1,0 +1,3 @@
+cn.pixel.pingdou.framework.datasource.config.PingdouDataSourceAutoConfiguration
+cn.pixel.pingdou.framework.mybatis.config.PingdouMybatisAutoConfiguration
+cn.pixel.pingdou.framework.translate.config.PingdouTranslateAutoConfiguration

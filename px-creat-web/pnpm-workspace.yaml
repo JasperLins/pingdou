@@ -1,0 +1,4 @@
+# pnpm 11+ 设置（原 package.json "pnpm" 字段已迁移至此）
+# esbuild 的 postinstall 仅校验二进制，平台二进制经 @esbuild/win32-x64 可选依赖提供
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,2 @@
+cn.pixel.pingdou.framework.quartz.config.PingdouQuartzAutoConfiguration
+cn.pixel.pingdou.framework.quartz.config.PingdouAsyncAutoConfiguration

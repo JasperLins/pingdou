@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * 设计 token · 单一权威来源（与 tailwind.config.js theme.extend 对应）。
+ *
+ * 主题机制：
+ *  - 主题色：<html data-theme="bocchi" | "miku">，由 store/theme.ts 驱动 ThemeController 写入；
+ *  - 暗色：<html class="dark">（Tailwind darkMode: 'class'）；
+ *  - 覆盖顺序：:root（bocchi 亮）→ [data-theme='miku']（miku 亮）→ .dark（bocchi 暗）
+ *              → .dark[data-theme='miku']（miku 暗），特异性递增保证四种组合互不串色。
+ *
+ * 色值取自 web-style 双图（bocchi the rock.jpg / Miku UI Design.jpg）取样：
+ *  - Bocchi 粉：近白底 #FDFAFB、Hero 渐变 #E27988 → #FCA5B5、深点缀 #C9586C；
+ *  - Miku 青：近白底 #F5FBFB、Hero 渐变 #4FBFC3 → #AFECED、深点缀 #2C6E7E。
+ * 所有变量为 "R G B" 三元组，供 rgb(var(--x) / <alpha-value>) 使用。
+ */
+
+:root {
+  --c-bg: 253 250 251;
+  --c-bg-alt: 250 242 245;
+  --c-surface: 255 255 255;
+  --c-surface-2: 253 240 243;
+  --c-ink: 44 34 43;
+  --c-ink-soft: 141 121 132;
+  --c-line: 240 224 229;
+  --c-primary: 226 113 137;
+  --c-primary-strong: 199 84 106;
+  --c-primary-soft: 252 165 178;
+  --c-primary-faint: 253 228 233;
+  --c-on-primary: 255 255 255;
+  --c-hero-from: 226 121 136;
+  --c-hero-mid: 240 144 160;
+  --c-hero-to: 252 165 181;
+  --c-hero-ink: 74 26 40;
+  --c-shadow: 216 112 132;
+}
+
+[data-theme='miku'] {
+  --c-bg: 245 251 251;
+  --c-bg-alt: 235 245 245;
+  --c-surface: 255 255 255;
+  --c-surface-2: 232 247 247;
+  --c-ink: 45 57 66;
+  --c-ink-soft: 116 131 138;
+  --c-line: 219 236 236;
+  --c-primary: 47 171 174;
+  --c-primary-strong: 36 142 146;
+  --c-primary-soft: 143 229 231;
+  --c-primary-faint: 219 245 246;
+  --c-on-primary: 255 255 255;
+  --c-hero-from: 79 191 195;
+  --c-hero-mid: 122 214 216;
+  --c-hero-to: 175 236 237;
+  --c-hero-ink: 14 59 62;
+  --c-shadow: 62 160 164;
+}
+
+.dark {
+  --c-bg: 33 26 32;
+  --c-bg-alt: 41 32 40;
+  --c-surface: 50 39 48;
+  --c-surface-2: 60 46 56;
+  --c-ink: 245 236 240;
+  --c-ink-soft: 186 165 177;
+  --c-line: 71 56 67;
+  --c-primary: 240 122 145;
+  --c-primary-strong: 247 148 167;
+  --c-primary-soft: 199 84 106;
+  --c-primary-faint: 80 45 55;
+  --c-on-primary: 58 22 32;
+  --c-hero-from: 96 47 60;
+  --c-hero-mid: 120 56 70;
+  --c-hero-to: 140 62 78;
+  --c-hero-ink: 250 225 232;
+  --c-shadow: 0 0 0;
+}
+
+.dark[data-theme='miku'] {
+  --c-bg: 20 32 36;
+  --c-bg-alt: 25 39 44;
+  --c-surface: 30 46 51;
+  --c-surface-2: 38 57 62;
+  --c-ink: 228 241 241;
+  --c-ink-soft: 152 172 176;
+  --c-line: 47 68 73;
+  --c-primary: 87 204 206;
+  --c-primary-strong: 122 217 218;
+  --c-primary-soft: 36 142 146;
+  --c-primary-faint: 26 60 63;
+  --c-on-primary: 10 42 44;
+  --c-hero-from: 23 84 88;
+  --c-hero-mid: 30 104 108;
+  --c-hero-to: 36 122 124;
+  --c-hero-ink: 223 246 246;
+  --c-shadow: 0 0 0;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-bg font-sans text-ink antialiased;
+  }
+
+  ::selection {
+    @apply bg-primarySoft/60;
+  }
+}

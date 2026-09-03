@@ -1,0 +1,2 @@
+cn.pixel.pingdou.framework.redis.config.PingdouRedisAutoConfiguration
+cn.pixel.pingdou.framework.redis.config.PingdouCacheAutoConfiguration
