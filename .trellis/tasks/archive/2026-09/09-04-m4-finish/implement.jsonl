@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/09-04-m4-finish/design.md", "reason": "本任务技术设计：六阶段渲染管线、预设参数集与管线解耦、Worker 协议、FinishPanel 交互、性能预算"}
+{"file": ".trellis/tasks/09-04-m4-finish/implement.md", "reason": "有序执行清单（10 步）与回滚点"}
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/design.md", "reason": "父契约：性能红线、lib 禁 React、目录结构、Worker 约束"}

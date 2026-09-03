@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/09-04-m4-finish/prd.md", "reason": "验收标准：六预设可区分、切换 ≤1s 不冻结、Esc/空格交互、零副作用、finish 持久化往返、缩略图过期重算、封面降级"}
+{"file": ".trellis/tasks/09-04-m4-finish/design.md", "reason": "检查管线/参数集/worker/UI 是否遵循设计"}
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/design.md", "reason": "父契约：效果是渲染层属性永不改 cells、>50ms 不上主线程"}
