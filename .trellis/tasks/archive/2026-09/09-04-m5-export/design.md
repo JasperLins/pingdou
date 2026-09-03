@@ -38,3 +38,10 @@ store：无新 store（导出为纯动作，参数在对话框本地态）
 1. **cellLabels 超长色号跳过（替代首字母截断）**：格内印完整色号，`measureText` 判定放不下（如 Perler `80-15179`）的格子自动跳过标注（同一色号当次渲染只测量一次）。理由：首字母/前缀截断信息量极低且同前缀色号易误导；跳过后仍有每 5 格刻度与底部图例辅助定位。check 评估：采纳。
 2. **字段命名沿用 m1 既有词汇**：design 稿的 `sheetStyle: 'sheet'|'plain'` 实现为 `layout: 'sheet'|'pattern_only'`（m1 `SheetLayoutKind` 既有命名），语义一致，避免同概念双名。
 3. **导出文件扩展名 `.json`**：m4 旧版 `{title}.pindou.json` 随统一导出对话框改为 `{title}.json`；全仓（src + 任务文档）grep `.pindou.json` 零残留，m4 测试无引用，无回归。
+
+## 6. 浏览器验收记录（2026-09-04，主会话）
+
+- ExportDialog 三页签在位（图纸 PNG 双版式+标注+署名+实时预览 / BOM CSV / 工程 JSON）
+- 捕获导出 Blob 字节验证：PNG 魔数 89504E47（44KB 合法 PNG）；CSV UTF-8 BOM（EF BB BF）+ 表头/数据/总计行正确（`品牌,色号,色名,颗数,占比` / `mard,A1,A1,17,100.00%` / `总计,,,17,100.00%`）；JSON 为 §4.8 全字段+spec 扩展（v/title/brandKey/w/h/cells/finish/spec，841 cells）✓
+- IAB 下载管理器行为不受控（waitForEvent download 对象不可用），采用页面内捕获 Blob 字节等价验证（同一导出函数）；真实下载管理器行为待部署环境复核
+- 结论：**m5 验收通过**
