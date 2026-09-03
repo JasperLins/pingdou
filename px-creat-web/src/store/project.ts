@@ -86,6 +86,8 @@ interface ProjectState {
   recordStroke: (diff: CellDiff, label: string) => void;
   setTitle: (title: string) => void;
   setRefImage: (ref: RefImageState | null) => void;
+  /** 更新烫染设置（渲染层属性：不触碰 cells/cellsVersion，不入撤销栈）。 */
+  setFinish: (finish: FinishSetting) => void;
   undo: () => void;
   redo: () => void;
   toProject: () => Project;
@@ -197,6 +199,14 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
 
   setTitle: (title) => set({ title, hasUnsavedChanges: true }),
   setRefImage: (refImage) => set({ refImage, hasUnsavedChanges: true }),
+  setFinish: (finish) =>
+    set({
+      finish: {
+        preset: finish.preset,
+        intensity: Math.min(100, Math.max(0, Math.round(finish.intensity))),
+      },
+      hasUnsavedChanges: true,
+    }),
 
   undo: () => {
     const editor = useEditorStore.getState();

@@ -345,20 +345,31 @@ export const useConvertStore = create<ConvertState>()((set, get) => ({
     activeRuns += 1;
     set({ busy: true });
     try {
-      const result = await runner(
-        work,
-        useProjectStore.getState().brandKey,
-        params.targetSize,
-        params.targetSize,
-        {
-          ...DEFAULT_CONVERT_OPTIONS,
-          mode: params.mode,
-          targetColors: params.targetColors,
-          background: { remove: params.removeBackground, tolerance: params.bgTolerance },
-          adjust: { brightness: params.brightness, contrast: params.contrast, saturation: params.saturation },
-        },
-        sourceType,
-      );
+      let result: ConvertSuccess | ConvertFailure;
+      try {
+        result = await runner(
+          work,
+          useProjectStore.getState().brandKey,
+          params.targetSize,
+          params.targetSize,
+          {
+            ...DEFAULT_CONVERT_OPTIONS,
+            mode: params.mode,
+            targetColors: params.targetColors,
+            background: { remove: params.removeBackground, tolerance: params.bgTolerance },
+            adjust: { brightness: params.brightness, contrast: params.contrast, saturation: params.saturation },
+          },
+          sourceType,
+        );
+      } catch (err) {
+        // Worker 脚本故障/超时会 reject：映射为可展示失败，避免 converting 卡死
+        const failure: ConvertFailure = {
+          ok: false,
+          code: 'internal_error',
+          message: err instanceof Error ? err.message : String(err),
+        };
+        result = failure;
+      }
       // 会话已切走（重新裁剪/关闭）或已有更新的运行：丢弃过期结果
       if (get().work !== work || myRun !== runSeq) return null;
       if (result.ok) {

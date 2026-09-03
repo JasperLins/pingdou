@@ -21,7 +21,12 @@ import type { BomRow, Rgb } from './types';
  * @param h 网格高
  * @param palette 品牌色板
  */
-export function computeBom(cells: readonly number[], w: number, h: number, palette: Palette): BomRow[] {
+export function computeBom(
+  cells: Int16Array | readonly number[],
+  w: number,
+  h: number,
+  palette: Palette,
+): BomRow[] {
   if (cells.length < w * h) throw new Error(`cells 长度 ${cells.length} 小于 ${w}×${h}`);
   const counts = new Map<number, number>();
   for (let i = 0; i < w * h; i++) {
@@ -186,12 +191,13 @@ export type TextAlignLike = string;
 export type TextBaselineLike = string;
 
 /**
- * 最小 canvas 2D 绘制接口（结构兼容 CanvasRenderingContext2D）。
- * lib 通过它下发绘制指令，具体绘制由调用方（DOM canvas / 测试 mock）执行。
+ * 最小 canvas 2D 绘制接口（结构兼容 CanvasRenderingContext2D：样式字段
+ * 覆盖渐变/图案联合类型）。lib 通过它下发绘制指令，具体绘制由调用方
+ * （DOM canvas / 测试 mock）执行。
  */
 export interface Canvas2DLike {
-  fillStyle: string;
-  strokeStyle: string;
+  fillStyle: string | CanvasGradient | CanvasPattern;
+  strokeStyle: string | CanvasGradient | CanvasPattern;
   lineWidth: number;
   font: string;
   textAlign: TextAlignLike;
@@ -204,7 +210,7 @@ export interface Canvas2DLike {
 
 /** 渲染参数。 */
 export interface RenderPatternArgs {
-  cells: readonly number[];
+  cells: Int16Array | readonly number[];
   w: number;
   h: number;
   palette: Palette;

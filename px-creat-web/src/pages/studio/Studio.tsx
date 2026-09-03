@@ -8,22 +8,27 @@ import {
 } from '@/lib/storage';
 import type { BeadSpec } from '@/store/project';
 import { loadPersisted, useProjectStore } from '@/store/project';
+import { useFinishStore } from '@/store/finish';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { CanvasStage } from '@/components/editor/CanvasStage';
 import { ToolRail } from '@/components/editor/ToolRail';
 import { PalettePanel } from '@/components/editor/PalettePanel';
 import { StatsPanel } from '@/components/editor/StatsPanel';
+import { FinishPanel } from '@/components/editor/FinishPanel';
 import { NewDialog } from '@/components/editor/NewDialog';
 import { ImportDialog } from '@/components/editor/ImportDialog';
 import { BrandSwitchDialog } from '@/components/editor/BrandSwitchDialog';
 import { useEditorShortcuts } from '@/components/editor/useEditorShortcuts';
 import { useProjectAutoSave } from '@/components/editor/useProjectAutoSave';
+import { useFinishPreview } from '@/components/editor/useFinishPreview';
+import { useFinishCover } from '@/components/editor/useFinishCover';
 import { boardCoverage, physicalCm } from '@/components/editor/boardSpec';
 
 /**
- * 编辑器主页（CSR，noindex）：左 ToolRail / 中 CanvasStage / 右 Palette+Stats。
- * 负责：首次进入恢复存档（或引导新建）、自动保存、工程 JSON 导入导出。
+ * 编辑器主页（CSR，noindex）：左 ToolRail / 中 CanvasStage / 右 Palette+Stats（+烫染面板）。
+ * 负责：首次进入恢复存档（或引导新建）、自动保存、工程 JSON 导入导出、
+ * 烫染预览渲染调度（Worker）与保存后效果封面异步生成。
  */
 export function Studio() {
   const loaded = useProjectStore((s) => s.loaded);
@@ -34,6 +39,7 @@ export function Studio() {
   const spec = useProjectStore((s) => s.spec);
   const hasUnsavedChanges = useProjectStore((s) => s.hasUnsavedChanges);
   const lastSavedAt = useProjectStore((s) => s.lastSavedAt);
+  const finishPanelOpen = useFinishStore((s) => s.panelOpen);
 
   const [newOpen, setNewOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
@@ -45,6 +51,8 @@ export function Studio() {
 
   useEditorShortcuts();
   useProjectAutoSave();
+  useFinishPreview();
+  useFinishCover();
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -169,6 +177,20 @@ export function Studio() {
           <Button size="sm" variant="soft" onClick={onExport}>
             导出 JSON
           </Button>
+          <Button
+            size="sm"
+            variant="soft"
+            title="烫染效果预览（毛巾烫 / 格利特 / 亮片…）"
+            aria-pressed={finishPanelOpen}
+            onClick={() =>
+              finishPanelOpen
+                ? useFinishStore.getState().closePanel()
+                : useFinishStore.getState().openPanel()
+            }
+            disabled={!loaded}
+          >
+            烫染
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setBrandOpen(true)} disabled={!loaded}>
             切换品牌
           </Button>
@@ -180,6 +202,7 @@ export function Studio() {
         <ToolRail />
         <CanvasStage />
         <aside className="flex w-80 min-w-64 flex-col gap-3 overflow-y-auto">
+          {finishPanelOpen && <FinishPanel />}
           <PalettePanel />
           <StatsPanel />
         </aside>
@@ -197,7 +220,8 @@ export function Studio() {
           板数 <b className="text-ink">{coverage.total}</b>（{coverage.cols}×{coverage.rows}）
         </span>
         <span className="ml-auto hidden lg:inline">
-          快捷键：B 画笔 · E 橡皮 · G 油漆桶 · I 吸管 · [ ] 笔刷 · 空格平移 · Ctrl+Z 撤销 · Alt+点击取色
+          快捷键：B 画笔 · E 橡皮 · G 油漆桶 · I 吸管 · [ ] 笔刷 · 空格平移 · Ctrl+Z 撤销 ·
+          Alt+点击取色 · 烫染预览时空格对比 / Esc 返回
         </span>
       </footer>
 

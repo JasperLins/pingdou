@@ -38,6 +38,13 @@ export interface NewDialogProps {
 
 export function NewDialog({ open, onClose, onOpenConvert }: NewDialogProps) {
   const [path, setPath] = useState<NewPath>('blank');
+  // 重新打开时回到空白路径（渲染期按 props 调整 state 的模式），避免"从图片转图"路径残留
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setPath('blank');
+  }
+
   const [spec, setSpec] = useState<BeadSpec>('5mm');
   const [size, setSize] = useState(29);
   const [customSize, setCustomSize] = useState(52);

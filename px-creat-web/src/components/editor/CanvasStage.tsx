@@ -14,6 +14,7 @@ import { loadPalette } from '@/lib/palettes';
 import { useProjectStore } from '@/store/project';
 import { useEditorStore } from '@/store/editor';
 import { useThemeStore } from '@/store/theme';
+import { useFinishStore } from '@/store/finish';
 
 /**
  * 画布舞台：四层 canvas（参考/绘制/网格/交互）+ DPR + 指针中心缩放 +
@@ -22,6 +23,9 @@ import { useThemeStore } from '@/store/theme';
  * 分层直接绘制（不建全图离屏缓冲）：104×104 在 48px/格的缓冲将逼近 100MB，
  * 改为视口裁剪 + 按色批量 Path2D，全量重绘实测在预算内（见任务报告）。
  * cells 变更走 lastDiff 脏区修补；视图/主题变更走全量重绘；指针预览只重绘交互层。
+ *
+ * 烫染预览态（M4）：previewing 时画布切只读效果图（隐藏网格/色号/参考/交互层），
+ * 按住对比或渲染未就绪时显示平面图纸兜底；视图切换零副作用（不写 cells）。
  */
 
 /** 格宽（CSS px）低于该值隐藏色号首字母。 */
@@ -74,6 +78,11 @@ export function CanvasStage() {
   const reviewColors = useEditorStore((s) => s.reviewColors);
   const spaceHeld = useEditorStore((s) => s.spaceHeld);
 
+  const finishPreviewing = useFinishStore((s) => s.previewing);
+  const finishComparing = useFinishStore((s) => s.comparing);
+  const finishPreview = useFinishStore((s) => s.preview);
+  const finishPreviewKey = useFinishStore((s) => s.previewKey);
+
   const themeKey = useThemeStore((s) => `${s.accent}:${s.dark}`);
 
   /** 色板渲染数据（品牌切换时重建）。 */
@@ -98,6 +107,10 @@ export function CanvasStage() {
     refOpacity,
     highlightIndex,
     reviewColors: new Set(reviewColors),
+    finishPreviewing,
+    finishComparing,
+    finishPreview,
+    finishPreviewKey,
   });
   // 渲染后同步快照（layout 阶段，先于 rAF 回调与浏览器绘制）
   useLayoutEffect(() => {
@@ -112,6 +125,10 @@ export function CanvasStage() {
       refOpacity,
       highlightIndex,
       reviewColors: new Set(reviewColors),
+      finishPreviewing,
+      finishComparing,
+      finishPreview,
+      finishPreviewKey,
     };
   });
 
@@ -130,6 +147,11 @@ export function CanvasStage() {
 
   const rafRef = useRef(0);
   const dirtyRef = useRef({ view: true, cells: false, grid: true, refLayer: true, overlay: true });
+  /** 烫染预览位图 → 离屏 canvas 缓存（按 previewKey 失效重建）。 */
+  const finishCanvasRef = useRef<{ key: string | null; canvas: HTMLCanvasElement | null }>({
+    key: null,
+    canvas: null,
+  });
 
   // -------------------------------------------------------------------------
   // 渲染原语
@@ -336,6 +358,80 @@ export function CanvasStage() {
     ctx.stroke();
   }, [cssVar, setupCanvas]);
 
+  /** 预览位图 → 离屏 canvas（指纹缓存；jsdom 等无 2D 上下文环境返回 null）。 */
+  const ensureFinishCanvas = useCallback((): HTMLCanvasElement | null => {
+    const preview = stateRef.current.finishPreview;
+    const key = stateRef.current.finishPreviewKey;
+    if (!preview || !key) return null;
+    if (finishCanvasRef.current.key === key && finishCanvasRef.current.canvas) {
+      return finishCanvasRef.current.canvas;
+    }
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = preview.w;
+      canvas.height = preview.h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.putImageData(new ImageData(preview.rgba, preview.w, preview.h), 0, 0);
+      finishCanvasRef.current = { key, canvas };
+      return canvas;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  /** 平面图纸视图（对比 / 渲染未就绪兜底）：纯色块，无网格线、无色号、无珠点。 */
+  const drawFlatCells = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      const { w: gw, view: v, paletteData: pd } = stateRef.current;
+      const cells = useProjectStore.getState().cells;
+      const range = visibleRange();
+      if (!range) return;
+      const squares = new Map<number, Path2D>();
+      for (let y = range.y0; y <= range.y1; y++) {
+        for (let x = range.x0; x <= range.x1; x++) {
+          const value = cells[y * gw + x];
+          if (value < 0 || value >= pd.rgbs.length) continue;
+          let sq = squares.get(value);
+          if (!sq) {
+            sq = new Path2D();
+            squares.set(value, sq);
+          }
+          sq.rect(v.offsetX + x * v.scale, v.offsetY + y * v.scale, v.scale, v.scale);
+        }
+      }
+      for (const [value, path] of squares) {
+        ctx.fillStyle = `rgb(${pd.rgbs[value]})`;
+        ctx.fill(path);
+      }
+    },
+    [visibleRange],
+  );
+
+  /** 烫染预览视图：效果图上屏（放大走平滑插值，呈现熔融质感）。 */
+  const renderFinishView = useCallback(() => {
+    const canvas = cellCanvasRef.current;
+    const e = engine.current;
+    const ctx = setupCanvas(canvas, e.cssW, e.cssH, e.dpr);
+    if (!ctx) return;
+    const { w: gw, h: gh, view: v, finishComparing: fc } = stateRef.current;
+    ctx.clearRect(0, 0, e.cssW, e.cssH);
+    ctx.fillStyle = `rgb(${cssVar('--c-surface')})`;
+    ctx.fillRect(v.offsetX, v.offsetY, gw * v.scale, gh * v.scale);
+    if (fc) {
+      drawFlatCells(ctx);
+      return;
+    }
+    const bmp = ensureFinishCanvas();
+    if (!bmp) {
+      drawFlatCells(ctx);
+      return;
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bmp, v.offsetX, v.offsetY, gw * v.scale, gh * v.scale);
+  }, [cssVar, drawFlatCells, ensureFinishCanvas, setupCanvas]);
+
   const renderRefLayer = useCallback(() => {
     const canvas = refCanvasRef.current;
     const e = engine.current;
@@ -441,6 +537,20 @@ export function CanvasStage() {
   const flush = useCallback(() => {
     rafRef.current = 0;
     const dirty = dirtyRef.current;
+    const e = engine.current;
+    // 烫染预览态：只渲染效果图层，网格/参考/交互层清空隐藏
+    if (stateRef.current.finishPreviewing) {
+      renderFinishView();
+      const clearLayer = (canvas: HTMLCanvasElement | null): void => {
+        const ctx = setupCanvas(canvas, e.cssW, e.cssH, e.dpr);
+        ctx?.clearRect(0, 0, e.cssW, e.cssH);
+      };
+      clearLayer(gridCanvasRef.current);
+      clearLayer(refCanvasRef.current);
+      clearLayer(overlayCanvasRef.current);
+      dirtyRef.current = { view: false, cells: false, grid: false, refLayer: false, overlay: false };
+      return;
+    }
     if (dirty.view) {
       renderCellsFull();
       renderGrid();
@@ -464,7 +574,7 @@ export function CanvasStage() {
       if (dirty.overlay) renderOverlay();
     }
     dirtyRef.current = { view: false, cells: false, grid: false, refLayer: false, overlay: false };
-  }, [drawCell, renderCellsFull, renderGrid, renderRefLayer, renderOverlay, setupCanvas]);
+  }, [drawCell, renderCellsFull, renderFinishView, renderGrid, renderRefLayer, renderOverlay, setupCanvas]);
 
   const schedule = useCallback(
     (kind: 'view' | 'cells' | 'grid' | 'refLayer' | 'overlay') => {
@@ -498,6 +608,11 @@ export function CanvasStage() {
   useEffect(() => {
     schedule('view');
   }, [themeKey, w, h, brandKey, view, gridVisible, schedule]);
+
+  // 烫染预览态/对比/新位图 → 效果图重绘
+  useEffect(() => {
+    schedule('view');
+  }, [finishPreviewing, finishComparing, finishPreviewKey, finishPreview, schedule]);
 
   useEffect(() => {
     // 底色填充随透写开关变化，cells 层也要全量重绘
@@ -623,6 +738,8 @@ export function CanvasStage() {
         engine.current.panning = { lastX: e.clientX - rect.left, lastY: e.clientY - rect.top };
         return;
       }
+      // 烫染预览态为只读视图：不落笔、不取色、不拉形状（仅中键平移）
+      if (stateRef.current.finishPreviewing) return;
       if (e.button !== 0) return;
       const cell = toCell(e.clientX, e.clientY);
       if (!cell || !inBounds(cell)) return;
@@ -668,6 +785,8 @@ export function CanvasStage() {
         engine.current.panning = { lastX: px, lastY: py };
         return;
       }
+      // 预览态：无笔刷光标/形状预览/落笔（平移除外）
+      if (stateRef.current.finishPreviewing) return;
       const cell = toCell(e.clientX, e.clientY);
       const prevHover = engine.current.hover;
       engine.current.hover = cell && inBounds(cell) ? cell : null;
