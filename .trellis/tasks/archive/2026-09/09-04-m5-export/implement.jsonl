@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/09-04-m5-export/design.md", "reason": "本任务技术设计：三件套版式选项、ExportDialog 结构、下载与文件名约定、测试策略"}
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/design.md", "reason": "父契约：BOM 行结构（brand/code/count 预留）、工程 JSON schema、目录结构"}
+{"file": ".trellis/tasks/09-04-m5-export/prd.md", "reason": "验收标准（版式三要素 Q5、BOM 可追溯 Q1、往返一致、大图不冻结）与行号标注备忘"}

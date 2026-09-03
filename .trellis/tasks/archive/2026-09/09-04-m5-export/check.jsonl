@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/09-04-m5-export/prd.md", "reason": "验收标准五条：版式对照、双版式/色号标注/署名生效、BOM 统计正确、JSON 往返一致、大图不冻结"}
+{"file": ".trellis/tasks/09-04-m5-export/design.md", "reason": "检查实现是否遵循版式参数与组件结构"}
+{"file": ".trellis/tasks/09-04-px-creat-web-p0/design.md", "reason": "父契约：schema 对齐 §4.8、性能红线、lib 纯函数"}
